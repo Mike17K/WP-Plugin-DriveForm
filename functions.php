@@ -51,15 +51,60 @@ function mymodifydata($data)
 }
 add_action('modify-data', 'mymodifydata', 10, 1);
 
+
+function getFileId($fileId)
+{
+
+}
+add_action('get-file-id', 'getFileId', 10, 3);
+
+function doesFileExist($driveService, $fileName, $driveDirectoryId, $post)
+{
+    // Check if the file already exists
+    $results = $driveService->files->listFiles(
+        array(
+            'q' => "name='" . $fileName . "' and trashed = false",
+            'fields' => 'nextPageToken, files(id, name)'
+        )
+    );
+    return $results;
+}
+add_filter('check-file-exist', 'doesFileExist', 10, 4);
+
+function myAddDataToSheet($sheetService, $fileId, $data) /////////////////////////// fix add data
+
+{
+    $valueRange = new Google_Service_Sheets_ValueRange();
+    $valueRange->setValues(
+        [
+            ["A", "B"],
+            [1, 2]
+        ]
+    );
+    $options = array(
+        "valueInputOption" => "RAW"
+    );
+
+    $sheetService->spreadsheets_values->update(
+        $fileId,
+        "A1:B2",
+        $valueRange,
+        $options
+    );
+}
+add_action('add-data-to-sheet', 'myAddDataToSheet', 10, 3);
+
 function googleApi($post, $fileName, $driveDirectoryId)
 {
-    putenv('GOOGLE_APPLICATION_CREDENTIALS=credentials.json');
+    putenv('GOOGLE_APPLICATION_CREDENTIALS=C:\Users\kaipi\OneDrive\Έγγραφα\api-google-keys\credentials.json');
 
     $client = new Google_Client();
     $client->useApplicationDefaultCredentials();
     $client->addScope(Google_Service_Drive::DRIVE);
+    $client->addScope(Google_Service_Sheets::SPREADSHEETS);
 
     $driveService = new Google_Service_Drive($client);
+    $sheetService = new Google_Service_Sheets($client);
 
     $fileMetadata = new Google_Service_Drive_DriveFile(
         array(
@@ -68,16 +113,30 @@ function googleApi($post, $fileName, $driveDirectoryId)
             'mimeType' => 'application/vnd.google-apps.spreadsheet'
         )
     );
-    $file = $driveService->files->create(
-        $fileMetadata,
-        array(
-            'fields' => 'id'
-        )
-    );
 
-    return $file->id;
+    $results = apply_filters('check-file-exist', $driveService, $fileName, $driveDirectoryId, $post);
+
+    if (count($results->getFiles()) == 0) {
+        // Create a new file
+        $file = $driveService->files->create(
+            $fileMetadata,
+            array(
+                'fields' => 'id'
+            )
+        );
+
+        $fileId = $file->id;
+    } else {
+        $fileId = $results->getFiles()[0]->id;
+        echo 'file exists';
+    }
+
+    // Add data 
+    do_action('add-data-to-sheet', $sheetService, $fileId, $post);
+
 }
 
 add_action('data-to-drive-sheet', 'googleApi', 10, 3);
+
 
 ?>
