@@ -72,13 +72,21 @@ function doesFileExist($driveService, $fileName, $driveDirectoryId, $post)
 add_filter('check-file-exist', 'doesFileExist', 10, 4);
 
 function myAddDataToSheet($sheetService, $fileId, $data) /////////////////////////// fix add data
-
 {
+    print_r($data);
+
+    $data_keys=[];
+    $data_values=[];
+    foreach($data as $key => $val) {
+        array_push($data_keys,$key);
+        array_push($data_values,$val);
+    }
+
     $valueRange = new Google_Service_Sheets_ValueRange();
     $valueRange->setValues(
         [
-            ["A", "B"],
-            [1, 2]
+            $data_keys,
+            $data_values
         ]
     );
     $options = array(
@@ -87,7 +95,7 @@ function myAddDataToSheet($sheetService, $fileId, $data) ///////////////////////
 
     $sheetService->spreadsheets_values->update(
         $fileId,
-        "A1:B2",
+        "A1:C2",
         $valueRange,
         $options
     );
@@ -96,7 +104,7 @@ add_action('add-data-to-sheet', 'myAddDataToSheet', 10, 3);
 
 function googleApi($post, $fileName, $driveDirectoryId)
 {
-    putenv('GOOGLE_APPLICATION_CREDENTIALS=C:\Users\kaipi\OneDrive\Έγγραφα\api-google-keys\credentials.json');
+    putenv("GOOGLE_APPLICATION_CREDENTIALS=C:\Users\\User\Documents\api-google-drive\credentials.json");
 
     $client = new Google_Client();
     $client->useApplicationDefaultCredentials();
